@@ -218,7 +218,7 @@ function updateTableWindow() {
     updatePreviewFooter(tableView, data);
     updateFeatureStrip(tableView.featureStrip, data.features);
     updateFeatureStrip(tableView.addonStrip, data.addons);
-    updatePreview(tableView.previewPanel, data);
+    updatePreview(tableView.previewPanel, data, isVideoEnabled("enable_table_video", true));
     updateTableList(tableView);
     animateTableSelection(tableView);
 
@@ -234,13 +234,12 @@ function updateBGWindow() {
     }
 
     const bgUrl = vpin.getImageURL(currentTableIndex, "bg");
-    let img = container.querySelector("img");
-    if (!img) {
-        img = document.createElement("img");
-        img.style.cssText = "width: 100%; height: 100%; object-fit: cover;";
-        container.appendChild(img);
-    }
+    container.replaceChildren();
+
+    const img = document.createElement("img");
+    img.style.cssText = "width: 100%; height: 100%; object-fit: cover;";
     img.src = bgUrl;
+    container.appendChild(img);
 }
 
 function updateDMDWindow() {
@@ -351,7 +350,7 @@ function ensureTableView(container) {
         rightStage: theme.querySelector(".es-right-stage"),
         rightStageGlow: theme.querySelector(".es-right-stage-glow"),
         rightStageRipples: [...theme.querySelectorAll(".es-right-stage-ripple")],
-        systemMarkImage: theme.querySelector(".es-system-mark-image"),
+        systemMark: theme.querySelector(".es-system-mark"),
         headerWheel: theme.querySelector(".es-screen-title-wheel"),
         titleText: theme.querySelector(".es-title-text"),
         authorText: theme.querySelector(".es-author-text"),
@@ -396,6 +395,7 @@ function getDisplayData(index) {
         cabUrl: vpin.getImageURL(index, "cab"),
         tableUrl: vpin.getImageURL(index, "table"),
         bgUrl: vpin.getImageURL(index, "bg"),
+        bgVideoUrl: vpin.getVideoURL(index, "bg"),
         dmdUrl: vpin.getImageURL(index, "dmd"),
         tableVideoUrl: vpin.getVideoURL(index, "table"),
         audioUrl: vpin.getAudioURL(index),
@@ -416,23 +416,50 @@ function getDisplayData(index) {
     };
 }
 
+function isVideoEnabled(optionName, fallback = true) {
+    if (!config || typeof config !== "object") return fallback;
+    if (!(optionName in config)) return fallback;
+    return Boolean(config[optionName]);
+}
+
+function createBackdropMedia(bgUrl) {
+    if (hasUsableMedia(bgUrl)) {
+        const image = document.createElement("img");
+        image.className = "es-backdrop-media";
+        image.src = bgUrl;
+        image.alt = "";
+        return image;
+    }
+
+    return null;
+}
+
 function updateBackdrop(view, bgUrl) {
-    if (!hasUsableMedia(bgUrl)) {
-        view.backdrop.style.backgroundImage = "";
+    const targetUrl = bgUrl;
+    if (!hasUsableMedia(targetUrl)) {
+        view.backdrop.replaceChildren();
+        delete view.backdrop.dataset.url;
         return;
     }
 
     const currentUrl = view.backdrop.dataset.url || "";
-    if (currentUrl === bgUrl) return;
+    if (currentUrl === targetUrl) return;
+
+    const media = createBackdropMedia(bgUrl);
+    if (!media) {
+        view.backdrop.replaceChildren();
+        delete view.backdrop.dataset.url;
+        return;
+    }
 
     const fadeLayer = document.createElement("div");
     fadeLayer.className = "es-backdrop-fade";
-    fadeLayer.style.backgroundImage = `url("${bgUrl}")`;
+    fadeLayer.appendChild(media);
     view.theme.prepend(fadeLayer);
     requestAnimationFrame(() => fadeLayer.classList.add("is-active"));
     setTimeout(() => {
-        view.backdrop.style.backgroundImage = `url("${bgUrl}")`;
-        view.backdrop.dataset.url = bgUrl;
+        view.backdrop.replaceChildren(createBackdropMedia(bgUrl));
+        view.backdrop.dataset.url = targetUrl;
         fadeLayer.remove();
     }, 260);
 }
@@ -443,14 +470,29 @@ function updateTitleBlock(view, data) {
 }
 
 function updateSystemHeader(view, data) {
-    if (!view.systemMarkImage) return;
+    if (!view.systemMark) return;
+
+    view.systemMark.replaceChildren();
+
+    if (isVideoEnabled("enable_selector_header_bg_video", true) && hasUsableMedia(data.bgVideoUrl)) {
+        const video = document.createElement("video");
+        video.className = "es-system-mark-media";
+        video.src = data.bgVideoUrl;
+        video.poster = hasUsableMedia(data.bgUrl) ? data.bgUrl : "";
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        view.systemMark.appendChild(video);
+        return;
+    }
 
     if (hasUsableMedia(data.bgUrl)) {
-        view.systemMarkImage.src = data.bgUrl;
-        view.systemMarkImage.alt = `${data.title} backglass`;
-    } else {
-        view.systemMarkImage.removeAttribute("src");
-        view.systemMarkImage.alt = data.title;
+        const image = document.createElement("img");
+        image.className = "es-system-mark-media";
+        image.src = data.bgUrl;
+        image.alt = `${data.title} backglass`;
+        view.systemMark.appendChild(image);
     }
 }
 
@@ -496,7 +538,7 @@ function updateFeatureStrip(container, items) {
     });
 }
 
-function updatePreview(container, data) {
+function updatePreview(container, data, allowVideo = true) {
     const currentLayer = container.querySelector(".es-preview-layer");
     const token = ++previewSwapToken;
     const incoming = document.createElement("div");
@@ -532,7 +574,7 @@ function updatePreview(container, data) {
 
     clearTimeout(mediaDelayTimer);
     mediaDelayTimer = setTimeout(() => {
-        if (token !== previewSwapToken || !hasUsableMedia(data.tableVideoUrl)) return;
+        if (token !== previewSwapToken || !allowVideo || !hasUsableMedia(data.tableVideoUrl)) return;
 
         const video = document.createElement("video");
         video.src = data.tableVideoUrl;

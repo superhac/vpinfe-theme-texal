@@ -82,6 +82,15 @@ body {
   opacity: 1;
 }
 
+.es-backdrop-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+}
+
 .es-atmosphere {
   position: absolute;
   inset: 0;
@@ -495,7 +504,9 @@ body {
   background: rgba(0, 0, 0, 0.58);
 }
 
-.es-system-mark img {
+.es-system-mark img,
+.es-system-mark video,
+.es-system-mark .es-system-mark-media {
   display: block;
   width: 100%;
   height: 100%;
