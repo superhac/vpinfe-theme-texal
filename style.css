@@ -71,11 +71,16 @@ body {
 
 .es-backdrop {
   filter: saturate(0.8) brightness(0.58);
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .es-backdrop-fade {
+  inset: 0;
   opacity: 0;
   transition: opacity 260ms linear;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .es-backdrop-fade.is-active {
@@ -85,6 +90,7 @@ body {
 .es-backdrop-media {
   position: absolute;
   inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -491,17 +497,23 @@ body {
   z-index: 2;
   padding: 0.75rem 0.75rem 0.9rem;
   border-bottom: none;
+  overflow: hidden;
 }
 
 .es-system-mark {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 5.6rem;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
   padding: 0.45rem 0.6rem;
   margin-bottom: 0;
   border: none;
   background: rgba(0, 0, 0, 0.58);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .es-system-mark img,
@@ -592,8 +604,7 @@ body {
 }
 
 .es-list-item.active .es-list-item-label {
-  animation: es-active-title-pulse 0.9s ease-in-out infinite alternate;
-  transform-origin: left center;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.34), 0 0 18px rgba(255, 198, 106, 0.22);
 }
 
 .es-list-item.active {

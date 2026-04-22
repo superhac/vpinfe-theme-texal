@@ -345,16 +345,44 @@ function updateBackdrop(view, bgUrl) {
         return;
     }
 
-    const fadeLayer = document.createElement("div");
-    fadeLayer.className = "es-backdrop-fade";
-    fadeLayer.appendChild(media);
-    view.theme.prepend(fadeLayer);
-    requestAnimationFrame(() => fadeLayer.classList.add("is-active"));
-    setTimeout(() => {
-        view.backdrop.replaceChildren(createBackdropMedia(bgUrl));
-        view.backdrop.dataset.url = targetUrl;
-        fadeLayer.remove();
-    }, 260);
+    const transitionToken = String(Date.now()) + Math.random().toString(16).slice(2);
+    view.backdrop.dataset.transitionToken = transitionToken;
+
+    const commitBackdropSwap = () => {
+        if (view.backdrop.dataset.transitionToken !== transitionToken) return;
+        const fadeLayer = document.createElement("div");
+        fadeLayer.className = "es-backdrop-fade";
+        fadeLayer.appendChild(media);
+        view.backdrop.appendChild(fadeLayer);
+
+        requestAnimationFrame(() => fadeLayer.classList.add("is-active"));
+        setTimeout(() => {
+            if (view.backdrop.dataset.transitionToken !== transitionToken) return;
+            view.backdrop.replaceChildren(media);
+            view.backdrop.dataset.url = targetUrl;
+        }, 260);
+    };
+
+    const finalize = () => {
+        if (view.backdrop.dataset.pendingUrl !== targetUrl) return;
+        delete view.backdrop.dataset.pendingUrl;
+        commitBackdropSwap();
+    };
+
+    view.backdrop.dataset.pendingUrl = targetUrl;
+
+    media.addEventListener("load", finalize, { once: true });
+    media.addEventListener("error", () => {
+        if (view.backdrop.dataset.pendingUrl === targetUrl) {
+            delete view.backdrop.dataset.pendingUrl;
+        }
+    }, { once: true });
+
+    if (media.complete) {
+        finalize();
+    } else if (typeof media.decode === "function") {
+        media.decode().then(finalize).catch(() => {});
+    }
 }
 
 function updateTitleBlock(view, data) {
@@ -560,17 +588,17 @@ function animateTableSelection(view) {
         headerTargets,
         {
             opacity: 0.16,
-            x: direction * 34,
-            y: -10,
-            scale: 0.94
+            x: direction * 14,
+            y: -4,
+            scale: 0.985
         },
         {
             opacity: 1,
             x: 0,
             y: 0,
             scale: 1,
-            duration: 0.7,
-            ease: "power3.out",
+            duration: 0.3,
+            ease: "power2.out",
             stagger: 0.08
         }
     );
@@ -579,16 +607,16 @@ function animateTableSelection(view) {
         view.previewStack,
         {
             opacity: 0.22,
-            x: direction * 52,
-            scale: 0.9,
-            rotate: direction * 1.25
+            x: direction * 18,
+            scale: 0.985,
+            rotate: direction * 0.25
         },
         {
             opacity: 1,
             x: 0,
             scale: 1,
             rotate: 0,
-            duration: 0.82,
+            duration: 0.28,
             ease: "power3.out"
         }
     );
@@ -632,9 +660,9 @@ function animateTableSelection(view) {
         gsap.fromTo(
             activeItem,
             {
-                x: lastMoveDirection > 0 ? 26 : -26,
-                scaleX: 0.92,
-                scaleY: 0.86,
+                x: lastMoveDirection > 0 ? 14 : -14,
+                scaleX: 0.97,
+                scaleY: 0.95,
                 filter: "brightness(1.35)"
             },
             {
@@ -642,8 +670,8 @@ function animateTableSelection(view) {
                 scaleX: 1,
                 scaleY: 1,
                 filter: "brightness(1)",
-                duration: 0.42,
-                ease: "back.out(2.2)"
+                duration: 0.24,
+                ease: "power2.out"
             }
         );
         if (scan) {
@@ -663,16 +691,10 @@ function animateTableSelection(view) {
 
     if (view.listSelector) {
         gsap.killTweensOf(view.listSelector);
-        gsap.fromTo(
-            view.listSelector,
-            { boxShadow: "0 0 0 rgba(255, 198, 106, 0)", opacity: 0.82 },
-            {
-                boxShadow: "0 0 28px rgba(255, 198, 106, 0.28), inset 0 0 0 1px rgba(255, 244, 213, 0.55)",
-                opacity: 1,
-                duration: 0.34,
-                ease: "power2.out"
-            }
-        );
+        gsap.set(view.listSelector, {
+            boxShadow: "0 0 24px rgba(255, 198, 106, 0.24), inset 0 0 0 1px rgba(255, 244, 213, 0.5)",
+            opacity: 1
+        });
     }
 }
 
@@ -738,33 +760,6 @@ function ensureSelectorPanelEffects(view) {
             rippleTimelines.push(timeline);
         });
     }
-
-    if (view.listSelector && !selectorPulseTween) {
-        selectorPulseTween = gsap.to(view.listSelector, {
-            boxShadow: "0 0 46px rgba(255, 198, 106, 0.5), inset 0 0 0 2px rgba(255, 244, 213, 0.95)",
-            opacity: 1,
-            duration: 0.8,
-            ease: "sine.inOut",
-            repeat: -1,
-            yoyo: true
-        });
-    }
-
-    if (view.listSelector && !selectorFrameTimeline) {
-        const outline = view.listSelector.querySelector(".es-list-selector-outline");
-        selectorFrameTimeline = gsap.timeline({ repeat: -1, yoyo: true });
-
-        if (outline) {
-            selectorFrameTimeline.to(outline, {
-                scaleX: 1.025,
-                scaleY: 1.08,
-                opacity: 1,
-                duration: 0.7,
-                ease: "power2.inOut"
-            }, 0);
-        }
-    }
-
 }
 
 function preloadNearbyMedia() {
